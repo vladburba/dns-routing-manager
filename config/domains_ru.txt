@@ -1,0 +1,21 @@
+# Российские поисковики
+yandex.ru
+mail.ru
+
+# Социальные сети
+vk.ru
+ok.ru
+
+# Государственные сайты
+*.gov.ru
+*.edu.ru
+
+# Банки
+sberbank.ru
+tinkoff.ru
+alfabank.ru
+
+# Новости
+rbc.ru
+lenta.ru
+rt.com

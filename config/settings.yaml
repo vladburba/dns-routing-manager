@@ -1,0 +1,60 @@
+# DNS Routing Manager Configuration
+
+# Сетевые интерфейсы (настроено под твою систему)
+network:
+  local:
+    interface: "en7"           # Твой основной интерфейс
+    gateway: "10.255.0.1"      # Твой локальный роутер
+    is_tunnel: false
+    
+  vpn:
+    interface: "utun4"         # Основной VPN туннель
+    gateway: null              # Для туннелей gateway не нужен
+    is_tunnel: true
+
+# Пути к файлам конфигурации
+files:
+  domains:
+    ru: "config/domains_ru.txt"
+    com: "config/domains_com.txt"
+  ips:
+    local: "config/ips_local.txt" 
+    vpn: "config/ips_vpn.txt"
+
+# Рабочие директории
+paths:
+  cache_dir: "data/cache"
+  routes_cache: "data/routes.json"
+  log_file: "logs/dns_routing.log"
+
+# DNS настройки
+dns:
+  timeout: 5                   # Таймаут DNS запроса в секундах
+  retries: 3                   # Количество повторных попыток
+  servers:                     # Предпочитаемые DNS серверы
+    - "8.8.8.8"
+    - "1.1.1.1"
+    - "8.8.4.4"
+
+# Кэширование
+cache:
+  ttl_hours: 24               # Время жизни DNS кэша в часах
+  max_entries: 1000           # Максимальное количество записей в кэше
+  
+# Логирование
+logging:
+  level: "INFO"               # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  max_size_mb: 10            # Максимальный размер лог файла
+  backup_count: 5            # Количество архивных лог файлов
+
+# Безопасность
+security:
+  require_sudo: true          # Требовать sudo для изменения маршрутов
+  backup_routes: true         # Создавать бэкап перед изменениями
+  
+# Производительность  
+performance:
+  parallel_resolve: true      # Параллельный DNS резолвинг
+  max_workers: 10            # Максимальное количество потоков
+  batch_size: 50             # Размер пакета для обработки доменов

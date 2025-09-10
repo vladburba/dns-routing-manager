@@ -1,0 +1,21 @@
+# Поисковики
+google.com
+bing.com
+
+# Разработка
+github.com
+stackoverflow.com
+
+# Облачные сервисы
+**.amazonaws.com
+**.cloudflare.com
+**.googleapis.com
+
+# Социальные сети
+facebook.com
+twitter.com
+linkedin.com
+
+# Видео и развлечения
+youtube.com
+netflix.com
