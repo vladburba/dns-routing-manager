@@ -75,123 +75,61 @@ DNS Routing Manager автоматически:
 - Направляет российский трафик (.ru) через локальную сеть
 - Направляет международный трафик (.com) через VPN
 
-## 🏗️ Архитектура
-
-```
-dns-routing-manager/
-├── dns_routing/           # Основной пакет
-│   ├── models.py         # Типизированные модели данных
-│   ├── config.py         # Загрузчик конфигурации (Singleton)
-│   ├── core/             # Бизнес-логика
-│   │   ├── resolver.py   # DNS резолвинг с кэшированием
-│   │   └── route_manager.py # Управление маршрутами
-│   └── cli/              # CLI интерфейс
-│       └── commands.py   # Click команды
-├── config/               # Конфигурация
-│   ├── settings.yaml     # Основные настройки
-│   ├── domains_ru.txt    # Российские домены
-│   ├── domains_com.txt   # Международные домены
-│   ├── ips_local.txt     # Локальные IP/подсети
-│   └── ips_vpn.txt       # VPN IP/подсети
-├── data/cache/           # Кэш DNS записей
-└── logs/                 # Логи приложения
-```
-
-## 🛠️ Установка и настройка
-
-### Требования
-- macOS Sequoia 15.6.1+ (тестировалось)
-- Python 3.12+
-- Права sudo для изменения маршрутов
-- Homebrew (рекомендуется)
-
-### Установка
-```bash
-# 1. Клонируем проект
-git clone <repository-url>
-cd dns-routing-manager
-
-# 2. Создаем виртуальное окружение
-python3 -m venv venv
-source venv/bin/activate
-
-# 3. Устанавливаем зависимости
-pip install -r requirements.txt
-
-# 4. Определяем сетевые интерфейсы
-ifconfig | grep -E "^(en|utun)"
-netstat -rn | grep "default"
-
-# 5. Редактируем config/settings.yaml под свою систему
-```
-
-### Конфигурация
-
-Отредактируйте `config/settings.yaml`:
-```yaml
-network:
-  local:
-    interface: "en7"        # Ваш основной интерфейс
-    gateway: "10.255.0.1"   # Ваш локальный роутер
-  vpn:
-    interface: "utun4"      # Ваш VPN интерфейс
-```
-
 ## 🚀 Использование
 
 ### Основные команды
 
 ```bash
 # Показать статус системы
-python3 run.py status
+dns-routing status
 
 # Резолвить домен
-python3 run.py dns resolve yandex.ru
-python3 run.py dns resolve github.com --type wildcard
+dns-routing dns resolve yandex.ru
+dns-routing dns resolve github.com --type wildcard
 
 # Управление DNS кэшем
-python3 run.py dns cache
-python3 run.py dns clear
+dns-routing dns cache
+dns-routing dns clear
 
 # Управление маршрутами
-python3 run.py routes add 8.8.8.8 --via vpn
-python3 run.py routes add 192.168.1.0/24 --via local
-python3 run.py routes check 8.8.8.8
-python3 run.py routes remove 8.8.8.8
+dns-routing routes add 8.8.8.8 --via vpn
+dns-routing routes add 192.168.1.0/24 --via local
+dns-routing routes check 8.8.8.8
+dns-routing routes remove 8.8.8.8
 
 # Массовая обработка доменов
-python3 run.py process --dry-run          # Безопасный просмотр
-python3 run.py process --ru-only          # Только российские домены
-python3 run.py process --com-only         # Только международные домены
-python3 run.py process                    # Все домены
+dns-routing process --dry-run          # Безопасный просмотр
+dns-routing process --ru-only          # Только российские домены
+dns-routing process --com-only         # Только международные домены
+dns-routing process                    # Все домены
 ```
 
 ### Типичный workflow
 
 1. **Проверка статуса:**
    ```bash
-   python3 run.py status
+   dns-routing status
    ```
 
 2. **Тестирование в dry-run режиме:**
    ```bash
-   python3 run.py process --dry-run
+   dns-routing process --dry-run
    ```
 
 3. **Обработка российских доменов:**
    ```bash
-   python3 run.py process --ru-only
+   dns-routing process --ru-only
    ```
 
 4. **Обработка международных доменов:**
    ```bash
-   python3 run.py process --com-only
+   dns-routing process --com-only
    ```
 
 5. **Проверка результатов:**
    ```bash
-   python3 run.py routes check yandex.ru
-   python3 run.py routes check google.com
+   dns-routing routes check yandex.ru
+   dns-routing routes check google.com
    ```
 
 ## 📁 Конфигурационные файлы
@@ -267,13 +205,13 @@ stackoverflow.com
 
 ### Проверка конфигурации
 ```bash
-python3 run.py status
+dns-routing status
 ```
 
 ### Проверка DNS
 ```bash
-python3 run.py dns cache
-python3 run.py dns resolve example.com
+dns-routing dns cache
+dns-routing dns resolve example.com
 ```
 
 ### Проверка маршрутов
@@ -283,16 +221,16 @@ route -n get 8.8.8.8
 netstat -rn | grep utun4
 
 # Через наш инструмент
-python3 run.py routes check 8.8.8.8
+dns-routing routes check 8.8.8.8
 ```
 
 ### Очистка
 ```bash
 # Очистить DNS кэш
-python3 run.py dns clear
+dns-routing dns clear
 
 # Очистить все маршруты (ОСТОРОЖНО!)
-python3 run.py routes clear
+dns-routing routes clear
 ```
 
 ## 📊 Мониторинг
