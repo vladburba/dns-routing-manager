@@ -145,24 +145,142 @@ EOF
 setup_default_config() {
     print_info "Настраиваем конфигурацию..."
     
-    # Определяем сетевые интерфейсы автоматически
+    # Определяем локальный интерфейс и gateway
     LOCAL_INTERFACE=$(route get default | grep interface: | awk '{print $2}')
     GATEWAY=$(route get default | grep gateway: | awk '{print $2}')
-    VPN_INTERFACE=$(ifconfig | grep -E "^utun[0-9]" | head -1 | cut -d: -f1)
     
-    if [ -z "$VPN_INTERFACE" ]; then
-        VPN_INTERFACE="utun0"  # Дефолтное значение
+    print_info "Локальный интерфейс: $LOCAL_INTERFACE (gateway: $GATEWAY)"
+    
+    # УМНОЕ ОПРЕДЕЛЕНИЕ VPN ИНТЕРФЕЙСА
+    print_info "Определяем VPN интерфейс..."
+    
+    # Шаг 1: Ищем активный VPN туннель (с трафиком)
+    VPN_INTERFACE=""
+    
+    # Получаем статистику всех utun интерфейсов
+    print_info "Анализируем активность туннелей..."
+    
+    # Проверяем какие utun интерфейсы имеют исходящий трафик
+    ACTIVE_TUNNELS=$(netstat -i | grep "utun" | awk '$10 > 0 {print $1}' | head -5)
+    
+    if [ -n "$ACTIVE_TUNNELS" ]; then
+        # Берем первый активный туннель
+        VPN_INTERFACE=$(echo "$ACTIVE_TUNNELS" | head -1)
+        print_success "Найден активный VPN туннель: $VPN_INTERFACE"
+    else
+        print_info "Активных VPN туннелей не найдено, ищем доступные..."
+        
+        # Шаг 2: Если активных нет, ищем первый доступный utun
+        AVAILABLE_TUNNELS=$(ifconfig | grep -E "^utun[0-9]+" | cut -d: -f1)
+        
+        if [ -n "$AVAILABLE_TUNNELS" ]; then
+            VPN_INTERFACE=$(echo "$AVAILABLE_TUNNELS" | head -1)
+            print_warning "Используется первый доступный туннель: $VPN_INTERFACE"
+            print_warning "Убедитесь что VPN подключен или измените config/settings.yaml"
+        else
+            print_info "VPN туннели не найдены, ищем другие типы..."
+            
+            # Шаг 3: Проверяем другие типы VPN интерфейсов
+            # ppp интерфейсы (старые VPN)
+            PPP_INTERFACE=$(ifconfig | grep -E "^ppp[0-9]+" | head -1 | cut -d: -f1)
+            if [ -n "$PPP_INTERFACE" ]; then
+                VPN_INTERFACE="$PPP_INTERFACE"
+                print_success "Найден PPP интерфейс: $VPN_INTERFACE"
+            else
+                # ipsec интерфейсы
+                IPSEC_INTERFACE=$(ifconfig | grep -E "^ipsec[0-9]+" | head -1 | cut -d: -f1)
+                if [ -n "$IPSEC_INTERFACE" ]; then
+                    VPN_INTERFACE="$IPSEC_INTERFACE"
+                    print_success "Найден IPSec интерфейс: $VPN_INTERFACE"
+                fi
+            fi
+        fi
     fi
+    
+    # Шаг 4: Если VPN интерфейс все еще не найден, используем локальный
+    if [ -z "$VPN_INTERFACE" ]; then
+        VPN_INTERFACE="$LOCAL_INTERFACE"
+        print_warning "VPN интерфейсы не найдены!"
+        print_warning "Используется локальный интерфейс: $VPN_INTERFACE"
+        print_warning "⚠️  Внимание: Локальный и VPN интерфейсы одинаковые"
+        print_warning "⚠️  Отредактируйте config/settings.yaml после подключения VPN"
+        VPN_IS_TUNNEL=false
+    else
+        VPN_IS_TUNNEL=true
+    fi
+    
+    # Проверяем что LOCAL_INTERFACE и VPN_INTERFACE разные
+    if [ "$LOCAL_INTERFACE" = "$VPN_INTERFACE" ] && [ "$VPN_IS_TUNNEL" = "true" ]; then
+        print_warning "⚠️  Локальный и VPN интерфейсы одинаковые: $LOCAL_INTERFACE"
+        print_warning "⚠️  Это может быть ошибкой определения"
+        
+        # Пытаемся найти другой туннель
+        OTHER_TUNNEL=$(ifconfig | grep -E "^utun[0-9]+" | grep -v "$LOCAL_INTERFACE" | head -1 | cut -d: -f1)
+        if [ -n "$OTHER_TUNNEL" ]; then
+            VPN_INTERFACE="$OTHER_TUNNEL"
+            print_info "Переключаемся на другой туннель: $VPN_INTERFACE"
+        fi
+    fi
+    
+    # Показываем найденные интерфейсы для отладки
+    print_info "Доступные сетевые интерфейсы:"
+    ifconfig | grep -E "^(en|utun|ppp|ipsec)[0-9]+" | while read -r line; do
+        iface=$(echo "$line" | cut -d: -f1)
+        if echo "$line" | grep -q "RUNNING"; then
+            print_info "  ✅ $iface (активный)"
+        else
+            print_info "  ⭕ $iface (неактивный)"
+        fi
+    done
     
     # Обновляем конфигурацию
     if [ -f "config/settings.yaml" ]; then
-        sed -i.bak "s/interface: \".*\"/interface: \"$LOCAL_INTERFACE\"/" config/settings.yaml
-        sed -i.bak "s/gateway: \".*\"/gateway: \"$GATEWAY\"/" config/settings.yaml
-        sed -i.bak "s/interface: \"utun.*\"/interface: \"$VPN_INTERFACE\"/" config/settings.yaml
-        rm config/settings.yaml.bak
+        # Исправляем local интерфейс и gateway
+        sed -i.bak "s/interface: \".*\" *# Твой основной интерфейс/interface: \"$LOCAL_INTERFACE\"           # Твой основной интерфейс/" config/settings.yaml
+        sed -i.bak "s/gateway: \".*\" *# Твой локальный роутер/gateway: \"$GATEWAY\"      # Твой локальный роутер/" config/settings.yaml
+        
+        # Исправляем VPN интерфейс
+        sed -i.bak "/vpn:/,/is_tunnel:/ s/interface: \".*\"/interface: \"$VPN_INTERFACE\"/" config/settings.yaml
+        
+        # Исправляем is_tunnel флаг для VPN
+        if [ "$VPN_IS_TUNNEL" = "false" ]; then
+            sed -i.bak "/vpn:/,/gateway:/ { /is_tunnel:/ s/true/false/; }" config/settings.yaml
+        fi
+        
+        rm config/settings.yaml.bak 2>/dev/null || true
     fi
     
-    print_success "Конфигурация настроена для $LOCAL_INTERFACE (gateway: $GATEWAY) и $VPN_INTERFACE"
+    print_success "✅ Конфигурация настроена:"
+    print_success "   📡 Локальный: $LOCAL_INTERFACE (gateway: $GATEWAY)"
+    if [ "$VPN_IS_TUNNEL" = "true" ]; then
+        print_success "   🔒 VPN: $VPN_INTERFACE (туннель)"
+    else
+        print_warning "   ⚠️  VPN: $VPN_INTERFACE (НЕ туннель - требует настройки)"
+    fi
+    
+    # Проверяем что интерфейсы действительно существуют
+    if ! ifconfig "$LOCAL_INTERFACE" &>/dev/null; then
+        print_error "❌ Локальный интерфейс $LOCAL_INTERFACE не найден!"
+    fi
+    
+    if ! ifconfig "$VPN_INTERFACE" &>/dev/null; then
+        print_error "❌ VPN интерфейс $VPN_INTERFACE не найден!"
+        print_warning "   Подключите VPN или отредактируйте config/settings.yaml вручную"
+    fi
+    
+    # Показываем рекомендации
+    echo ""
+    print_info "🔧 Рекомендации по настройке:"
+    if [ "$VPN_IS_TUNNEL" = "false" ]; then
+        print_warning "   1. Подключите VPN"
+        print_warning "   2. Выполните: dns-routing status"
+        print_warning "   3. При необходимости отредактируйте ~/dns-routing-manager/config/settings.yaml"
+    else
+        print_success "   1. Проверьте: dns-routing status"
+        print_success "   2. Тестируйте: dns-routing process --dry-run"
+        print_success "   3. Если нужен другой VPN туннель, отредактируйте config/settings.yaml"
+    fi
+    echo ""
 }
 
 # Проверяем установку
