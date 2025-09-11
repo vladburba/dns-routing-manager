@@ -129,6 +129,8 @@ cd "$HOME/dns-routing-manager"
 # Активируем виртуальное окружение
 source venv/bin/activate
 
+# Устанавливаем правильное имя программы для Click
+export CLICK_PROGRAM_NAME="dns-routing"
 # Запускаем приложение с переданными аргументами
 python3 run.py "$@"
 EOF
