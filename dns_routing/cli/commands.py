@@ -13,7 +13,7 @@ from ..models import Domain, DomainType, RouteType
 from ..config import get_config
 
 
-@click.group()
+@click.group(name="dns-routing")
 @click.version_option(version="1.0.0", prog_name="DNS Routing Manager")
 def cli():
     """
