@@ -132,6 +132,7 @@ source venv/bin/activate
 # Устанавливаем правильное имя программы для Click
 export CLICK_PROGRAM_NAME="dns-routing"
 # Запускаем приложение с переданными аргументами
+export CLICK_PROGRAM_NAME="dns-routing"
 python3 run.py "$@"
 EOF
 
